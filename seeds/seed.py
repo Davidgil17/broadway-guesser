@@ -2,6 +2,7 @@ import asyncio
 import csv
 import os
 import sys
+from datetime import date as date_type
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -38,7 +39,7 @@ async def seed():
                     composer=row["composer"],
                     notable_cast=row["notable_cast"],
                     plot_hint=row["plot_hint"],
-                    play_date=row["play_date"],
+                    play_date=date_type.fromisoformat(row["play_date"]),
                 )
                 .on_conflict_do_update(
                     index_elements=["play_date"],
