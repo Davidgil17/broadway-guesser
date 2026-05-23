@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: broadway
+      POSTGRES_USER: broadway
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U broadway"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: app/Dockerfile
+    ports:
+      - "127.0.0.1:8003:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://broadway:${DB_PASSWORD}@db:5432/broadway
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./seeds:/broadway/seeds
+
+volumes:
+  pgdata:
