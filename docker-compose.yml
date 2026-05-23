@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: broadway
       POSTGRES_USER: broadway
@@ -17,6 +18,7 @@ services:
     build:
       context: .
       dockerfile: app/Dockerfile
+    restart: unless-stopped
     ports:
       - "127.0.0.1:8003:8000"
     environment:
