@@ -17,5 +17,7 @@ AsyncSessionLocal = (
 
 
 async def get_db():
+    if AsyncSessionLocal is None:
+        raise RuntimeError("DATABASE_URL is not configured")
     async with AsyncSessionLocal() as session:
         yield session
