@@ -100,12 +100,20 @@ function renderEndState() {
 function shareResult() {
   const filled = state.solved ? state.score : 0;
   const grid = '⭐'.repeat(filled) + '⬛'.repeat(5 - filled);
-  const text = `Broadway Guesser ${TODAY}\n${grid}`;
-  navigator.clipboard.writeText(text).then(() => {
-    const confirm = document.getElementById('share-confirm');
-    confirm.style.display = 'block';
-    setTimeout(() => { confirm.style.display = 'none'; }, 2000);
-  });
+  const guessLine = state.solved
+    ? `Got it in ${state.guessesUsed} guess${state.guessesUsed === 1 ? '' : 'es'}!`
+    : `Didn't get it today`;
+  const text = `Broadway Guesser ${TODAY}\n${guessLine} ${grid}`;
+
+  if (navigator.share) {
+    navigator.share({ text }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(text).then(() => {
+      const confirm = document.getElementById('share-confirm');
+      confirm.style.display = 'block';
+      setTimeout(() => { confirm.style.display = 'none'; }, 2000);
+    });
+  }
 }
 
 function startCountdown() {
