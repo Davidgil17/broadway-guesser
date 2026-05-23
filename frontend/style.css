@@ -8,8 +8,6 @@
   --text-muted: #a89070;
   --gold: #c9a84c;
   --gold-dark: #9a7530;
-  --red: #8b1a1a;
-  --green: #2d6a2d;
   --radius: 8px;
 }
 
@@ -20,46 +18,52 @@ body {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  padding: 2rem 1rem;
+  padding: 2rem 1.25rem 4rem;
 }
 
 #app {
   width: 100%;
-  max-width: 640px;
+  max-width: 660px;
 }
+
+/* ── Header ── */
 
 header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
   border-bottom: 2px solid var(--gold);
   padding-bottom: 1.5rem;
 }
 
 h1 {
-  font-size: 2.5rem;
+  font-size: clamp(1.75rem, 6vw, 2.75rem);
   color: var(--gold);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.4rem;
+  line-height: 1.1;
 }
 
 #date-display {
   color: var(--text-muted);
   font-family: 'Helvetica Neue', Arial, sans-serif;
   font-size: 0.9rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
 }
 
 #score-stars {
-  font-size: 1.4rem;
-  min-height: 1.6rem;
+  font-size: 1.5rem;
+  min-height: 1.75rem;
+  letter-spacing: 0.1em;
 }
+
+/* ── Clue cards ── */
 
 #clues-container {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: 0.875rem;
+  margin-bottom: 2rem;
 }
 
 .clue-card {
@@ -67,7 +71,7 @@ h1 {
   border: 1px solid var(--border);
   border-left: 4px solid var(--gold);
   border-radius: var(--radius);
-  padding: 1rem 1.25rem;
+  padding: 1rem 1.375rem;
   animation: none;
 }
 
@@ -76,50 +80,65 @@ h1 {
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateY(-12px); }
+  from { opacity: 0; transform: translateY(-10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 .clue-label {
   font-family: 'Helvetica Neue', Arial, sans-serif;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   color: var(--gold);
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.35rem;
 }
 
 .clue-value {
   font-size: 1.15rem;
+  line-height: 1.4;
 }
 
+/* ── Feedback ── */
+
 #feedback-message {
-  min-height: 1.4rem;
+  min-height: 1.5rem;
   font-family: 'Helvetica Neue', Arial, sans-serif;
   font-size: 0.9rem;
   color: var(--text-muted);
   text-align: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
   transition: color 0.2s;
 }
 
 #feedback-message.error { color: #e07070; }
 #feedback-message.success { color: #70c070; }
 
+/* ── Input section ── */
+
 #input-section {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.875rem;
+}
+
+#guess-row {
+  display: flex;
+  gap: 0.625rem;
+  align-items: stretch;
 }
 
 #autocomplete-wrapper {
   position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
 #guess-input {
   width: 100%;
-  padding: 0.8rem 1rem;
+  height: 100%;
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: var(--radius);
@@ -128,6 +147,7 @@ h1 {
   font-size: 1rem;
   outline: none;
   transition: border-color 0.2s;
+  -webkit-appearance: none;
 }
 
 #guess-input:focus { border-color: var(--gold); }
@@ -152,20 +172,24 @@ h1 {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  max-height: 200px;
+  max-height: 220px;
   overflow-y: auto;
   z-index: 100;
   display: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 #autocomplete-dropdown.open { display: block; }
 
 .autocomplete-item {
-  padding: 0.6rem 1rem;
+  padding: 0.75rem 1rem;
   cursor: pointer;
   font-family: 'Helvetica Neue', Arial, sans-serif;
   font-size: 0.95rem;
   border-bottom: 1px solid var(--border);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
 .autocomplete-item:last-child { border-bottom: none; }
@@ -175,7 +199,9 @@ h1 {
 }
 
 #submit-btn {
-  padding: 0.8rem 2rem;
+  flex-shrink: 0;
+  padding: 0.75rem 1.5rem;
+  min-height: 3rem;
   background: var(--gold);
   color: var(--bg);
   border: none;
@@ -187,6 +213,7 @@ h1 {
   letter-spacing: 0.08em;
   cursor: pointer;
   transition: background 0.2s;
+  white-space: nowrap;
 }
 
 #submit-btn:hover { background: var(--gold-dark); }
@@ -199,22 +226,26 @@ h1 {
   color: var(--text-muted);
 }
 
+/* ── End section ── */
+
 #end-section {
   text-align: center;
-  padding: 1.5rem;
+  padding: 2rem 1.5rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
 
 #end-message {
-  font-size: 1.25rem;
-  margin-bottom: 1.25rem;
-  line-height: 1.5;
+  font-size: clamp(1rem, 4vw, 1.25rem);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
 }
 
 #share-btn {
-  padding: 0.7rem 1.75rem;
+  display: inline-block;
+  padding: 0.8rem 2rem;
+  min-height: 48px;
   background: transparent;
   border: 2px solid var(--gold);
   color: var(--gold);
@@ -224,7 +255,7 @@ h1 {
   font-weight: 700;
   cursor: pointer;
   transition: background 0.2s, color 0.2s;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
 }
 
 #share-btn:hover { background: var(--gold); color: var(--bg); }
@@ -240,16 +271,42 @@ h1 {
   font-family: 'Helvetica Neue', Arial, sans-serif;
   font-size: 0.9rem;
   color: var(--text-muted);
-  margin-top: 1rem;
+  margin-top: 1.25rem;
 }
 
 #no-show-message {
   text-align: center;
   padding: 3rem 1rem;
   color: var(--text-muted);
+  font-family: 'Helvetica Neue', Arial, sans-serif;
 }
 
-@media (max-width: 480px) {
-  h1 { font-size: 1.8rem; }
-  body { padding: 1rem 0.75rem; }
+/* ── Mobile ── */
+
+@media (max-width: 520px) {
+  body { padding: 1.25rem 1rem 3rem; }
+
+  header { margin-bottom: 2rem; padding-bottom: 1.25rem; }
+
+  #clues-container { gap: 0.75rem; margin-bottom: 1.75rem; }
+
+  .clue-card { padding: 0.875rem 1rem; }
+
+  .clue-value { font-size: 1.05rem; }
+
+  /* Stack input and button vertically, both full width */
+  #guess-row { flex-direction: column; gap: 0.625rem; }
+
+  #submit-btn {
+    width: 100%;
+    padding: 0.875rem;
+    min-height: 52px;
+    font-size: 1.05rem;
+  }
+
+  #guess-input { min-height: 52px; font-size: 1rem; }
+
+  #end-section { padding: 1.5rem 1rem; }
+
+  #share-btn { width: 100%; }
 }
