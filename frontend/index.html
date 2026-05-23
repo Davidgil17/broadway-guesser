@@ -1,1 +1,54 @@
-<!DOCTYPE html><html><body>placeholder</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Broadway Guesser</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Broadway Guesser</h1>
+      <p id="date-display"></p>
+      <div id="score-stars"></div>
+    </header>
+
+    <main>
+      <div id="no-show-message" style="display:none">
+        <p>No show scheduled for today. Check back tomorrow!</p>
+      </div>
+
+      <div id="game-area">
+        <div id="clues-container"></div>
+
+        <div id="feedback-message"></div>
+
+        <div id="input-section">
+          <div id="autocomplete-wrapper">
+            <input
+              id="guess-input"
+              type="text"
+              placeholder="Type a Broadway show..."
+              autocomplete="off"
+              aria-label="Guess a Broadway show"
+            >
+            <div id="autocomplete-dropdown"></div>
+          </div>
+          <button id="submit-btn">Guess</button>
+          <p id="guesses-remaining"></p>
+        </div>
+
+        <div id="end-section" style="display:none">
+          <p id="end-message"></p>
+          <button id="share-btn">Share Result</button>
+          <p id="share-confirm" style="display:none">Copied to clipboard!</p>
+          <div id="countdown-timer"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/static/game.js"></script>
+</body>
+</html>
