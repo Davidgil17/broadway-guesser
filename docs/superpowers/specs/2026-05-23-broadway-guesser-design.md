@@ -15,7 +15,7 @@ A daily Broadway show guessing game. Each day a new show is the answer. Players 
 ## Architecture
 
 - **Backend:** FastAPI (Python 3.12), async SQLAlchemy, PostgreSQL 16
-- **Frontend:** Vanilla JS + HTML + CSS, served as static files mounted on the FastAPI app
+- **Frontend:** Vanilla JS + HTML + CSS, COPYed into the Docker image and served as static files by FastAPI
 - **Infrastructure:** Docker Compose (app + db), Caddy system service as HTTPS reverse proxy
 - **Repo:** `~/broadway-guesser`, git-initialized
 
@@ -105,8 +105,8 @@ Returns today's 5 clues in order. Never returns the title.
 
 - Comparison: case-insensitive, stripped of leading/trailing whitespace.
 - `answer` is only included when `correct: true`. Client is responsible for revealing the answer on exhaustion.
-- `score` = `max(5 - guesses_used + 1, 0)` where `guesses_used` is derived from the clue number the client is on (passed implicitly — server just validates the guess against today's show).
-- Server is stateless: it does not track how many guesses a player has made. The client sends `guesses_used` in the body so the server can compute the score.
+- `score` = `max(5 - guesses_used + 1, 0)` where `guesses_used` is the number of guesses made including this one.
+- Server is stateless: it does not track guess history. The client sends `guesses_used` and the server trusts it. This is an accepted trade-off for a no-login casual game.
 
 **Revised body:**
 ```json
@@ -168,7 +168,7 @@ Playbill aesthetic:
 3. **Guess input:** Text input with autocomplete dropdown filtered from `/api/shows`. Submit on Enter or button click.
 4. **Wrong guess feedback:** Input shakes, "Incorrect — here's your next clue" message, next clue animates in.
 5. **Correct guess:** Confetti burst animation, score banner ("You got it in 2 clues — 4 points!").
-6. **Exhausted (6th wrong/skip):** Answer revealed with "The answer was X — better luck tomorrow!"
+6. **Exhausted (after 5th wrong guess):** Answer revealed with "The answer was X — better luck tomorrow!"
 7. **Share button:** Appears after game ends. Copies emoji result grid to clipboard:
    ```
    Broadway Guesser 2026-05-23
@@ -243,8 +243,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ../frontend:/app/frontend
 
 volumes:
   pgdata:
