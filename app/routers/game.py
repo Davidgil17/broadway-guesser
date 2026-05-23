@@ -51,3 +51,9 @@ async def post_guess(body: GuessRequest, db: AsyncSession = Depends(get_db)):
     if correct or body.guesses_used >= 5:
         response["answer"] = show.title
     return response
+
+
+@router.get("/shows")
+async def get_shows(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Show.title).order_by(Show.title))
+    return [row[0] for row in result.all()]

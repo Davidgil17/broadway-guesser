@@ -100,3 +100,16 @@ async def test_guess_wrong_date_returns_404(client, today_show):
         "guesses_used": 1,
     })
     assert response.status_code == 404
+
+
+async def test_shows_returns_sorted_titles(client, today_show, other_show):
+    response = await client.get("/api/shows")
+    assert response.status_code == 200
+    titles = response.json()
+    assert titles == ["Hamilton", "West Side Story"]
+
+
+async def test_shows_returns_empty_list_when_no_shows(client):
+    response = await client.get("/api/shows")
+    assert response.status_code == 200
+    assert response.json() == []
