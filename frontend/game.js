@@ -212,15 +212,16 @@ function renderEndState() {
     msg.textContent = `You got it in ${state.guessesUsed} clue${state.guessesUsed === 1 ? '' : 's'} — ${state.score} point${state.score === 1 ? '' : 's'}! 🎭`;
   } else {
     msg.textContent = `The answer was "${state.answer}" — better luck tomorrow!`;
-    if (todayData) {
-      const container = document.getElementById('clues-container');
-      container.innerHTML = '';
-      for (const clue of todayData.clues) {
-        const card = document.createElement('div');
-        card.className = 'clue-card';
-        card.innerHTML = `<div class="clue-label">${clue.category}</div><div class="clue-value">${clue.value}</div>`;
-        container.appendChild(card);
-      }
+  }
+
+  if (todayData) {
+    const container = document.getElementById('clues-container');
+    container.innerHTML = '';
+    for (const clue of todayData.clues) {
+      const card = document.createElement('div');
+      card.className = 'clue-card';
+      card.innerHTML = `<div class="clue-label">${clue.category}</div><div class="clue-value">${clue.value}</div>`;
+      container.appendChild(card);
     }
   }
 
