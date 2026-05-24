@@ -36,16 +36,15 @@ header {
 }
 
 #header-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
+  position: relative;
   margin-bottom: 0.4rem;
 }
 
-#header-row h1 { margin-bottom: 0; }
-
 #stats-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   background: transparent;
   border: 2px solid var(--gold);
   color: var(--gold);
@@ -57,8 +56,8 @@ header {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
-  flex-shrink: 0;
   min-height: 44px;
+  min-width: 64px;
 }
 
 #stats-btn:hover { background: var(--gold); color: var(--bg); }
@@ -68,8 +67,9 @@ h1 {
   color: var(--gold);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0;
   line-height: 1.1;
+  padding: 0 5rem;
 }
 
 #date-display {
