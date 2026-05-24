@@ -9,7 +9,10 @@
 <body>
   <div id="app">
     <header>
-      <h1>Broadway Guesser</h1>
+      <div id="header-row">
+        <h1>Broadway Guesser</h1>
+        <button id="stats-btn" aria-label="View statistics">&#9998;</button>
+      </div>
       <p id="date-display"></p>
       <div id="score-stars"></div>
     </header>
@@ -49,6 +52,23 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Stats modal -->
+  <div id="stats-modal" style="display:none" role="dialog" aria-modal="true" aria-label="Statistics">
+    <div id="stats-overlay"></div>
+    <div id="stats-content">
+      <button id="stats-close" aria-label="Close">&times;</button>
+      <h2>Statistics</h2>
+      <div id="stats-grid">
+        <div class="stat-box"><span id="stat-played">0</span><label>Played</label></div>
+        <div class="stat-box"><span id="stat-winpct">0</span><label>Win %</label></div>
+        <div class="stat-box"><span id="stat-streak">0</span><label>Streak</label></div>
+        <div class="stat-box"><span id="stat-maxstreak">0</span><label>Best</label></div>
+      </div>
+      <h3>Guess Distribution</h3>
+      <div id="stats-distribution"></div>
+    </div>
   </div>
 
   <script src="/static/game.js"></script>

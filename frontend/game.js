@@ -140,14 +140,73 @@ let todayData = null;
 let state = loadState();
 let activeDropdownIndex = -1;
 
+const STATS_KEY = 'broadway_stats';
+
 function loadState() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (raw) return JSON.parse(raw);
-  return { guessesUsed: 0, solved: false, score: 0, guesses: [], answer: null };
+  return { guessesUsed: 0, solved: false, score: 0, guesses: [], answer: null, statsRecorded: false };
 }
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadStats() {
+  const raw = localStorage.getItem(STATS_KEY);
+  if (raw) return JSON.parse(raw);
+  return { played: 0, won: 0, currentStreak: 0, maxStreak: 0, distribution: [0, 0, 0, 0, 0] };
+}
+
+function saveStats(stats) {
+  localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+}
+
+function recordGameStats(won, guessesUsed) {
+  if (state.statsRecorded) return;
+  const stats = loadStats();
+  stats.played += 1;
+  if (won) {
+    stats.won += 1;
+    stats.currentStreak += 1;
+    stats.maxStreak = Math.max(stats.maxStreak, stats.currentStreak);
+    stats.distribution[guessesUsed - 1] += 1;
+  } else {
+    stats.currentStreak = 0;
+  }
+  saveStats(stats);
+  state.statsRecorded = true;
+  saveState();
+}
+
+function openStats() {
+  const stats = loadStats();
+  document.getElementById('stat-played').textContent = stats.played;
+  document.getElementById('stat-winpct').textContent =
+    stats.played ? Math.round((stats.won / stats.played) * 100) : 0;
+  document.getElementById('stat-streak').textContent = stats.currentStreak;
+  document.getElementById('stat-maxstreak').textContent = stats.maxStreak;
+
+  const dist = document.getElementById('stats-distribution');
+  dist.innerHTML = '';
+  const max = Math.max(...stats.distribution, 1);
+  stats.distribution.forEach((count, i) => {
+    const row = document.createElement('div');
+    row.className = 'dist-row';
+    const pct = Math.max(Math.round((count / max) * 100), count > 0 ? 8 : 0);
+    row.innerHTML = `
+      <span class="dist-label">${i + 1}</span>
+      <div class="dist-bar-wrap">
+        <div class="dist-bar${count > 0 ? ' dist-bar-filled' : ''}" style="width:${pct}%">${count}</div>
+      </div>`;
+    dist.appendChild(row);
+  });
+
+  document.getElementById('stats-modal').style.display = 'flex';
+}
+
+function closeStats() {
+  document.getElementById('stats-modal').style.display = 'none';
 }
 
 async function init() {
@@ -174,6 +233,7 @@ function render() {
   document.getElementById('end-section').style.display = gameOver ? 'block' : 'none';
 
   if (gameOver) {
+    recordGameStats(state.solved, state.guessesUsed);
     renderEndState();
     startCountdown();
   } else {
@@ -263,6 +323,10 @@ function startCountdown() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('stats-btn').addEventListener('click', openStats);
+  document.getElementById('stats-close').addEventListener('click', closeStats);
+  document.getElementById('stats-overlay').addEventListener('click', closeStats);
+
   const input = document.getElementById('guess-input');
   const dropdown = document.getElementById('autocomplete-dropdown');
   const submitBtn = document.getElementById('submit-btn');
