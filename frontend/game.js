@@ -142,14 +142,77 @@ let state = loadState();
 let activeDropdownIndex = -1;
 
 const STATS_KEY = 'broadway_stats';
+const PLAYER_KEY = 'broadway_player';
 
 function storageKey() { return `broadway_${activeDate}`; }
 function isArchiveMode() { return activeDate !== TODAY; }
 
+function getPlayer() {
+  const raw = localStorage.getItem(PLAYER_KEY);
+  return raw ? JSON.parse(raw) : null;
+}
+
+function setPlayer(data) {
+  localStorage.setItem(PLAYER_KEY, JSON.stringify(data));
+}
+
+function collectHistory() {
+  const history = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key.startsWith('broadway_')) continue;
+    const dateStr = key.replace('broadway_', '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
+    try {
+      const s = JSON.parse(localStorage.getItem(key));
+      if (s.solved || s.guessesUsed >= 5) {
+        history.push({ date: dateStr, solved: !!s.solved, guesses_used: s.guessesUsed || 0, score: s.score || 0 });
+      }
+    } catch {}
+  }
+  return history;
+}
+
+async function handleLeaderboard() {
+  const player = getPlayer();
+  if (player === null && !isArchiveMode()) {
+    openNamePrompt();
+  } else if (player && player.uuid) {
+    try {
+      await fetch('/api/scores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uuid: player.uuid, date: activeDate, solved: state.solved, guesses_used: state.guessesUsed, score: state.score || 0 }),
+      });
+    } catch {}
+  }
+}
+
+async function registerPlayer(name) {
+  const uuid = crypto.randomUUID();
+  const history = collectHistory();
+  const res = await fetch('/api/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uuid, name, history }),
+  });
+  if (!res.ok) throw new Error('Registration failed');
+  setPlayer({ uuid, name });
+}
+
+function openNamePrompt() {
+  document.getElementById('name-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('name-input').focus(), 50);
+}
+
+function closeNamePrompt() {
+  document.getElementById('name-modal').style.display = 'none';
+}
+
 function loadState() {
   const raw = localStorage.getItem(storageKey());
   if (raw) return JSON.parse(raw);
-  return { guessesUsed: 0, solved: false, score: 0, guesses: [], answer: null, statsRecorded: false };
+  return { guessesUsed: 0, solved: false, score: 0, guesses: [], answer: null, statsRecorded: false, leaderboardHandled: false };
 }
 
 function saveState() {
@@ -257,6 +320,11 @@ function render() {
     renderEndState();
     if (!isArchiveMode()) startCountdown();
     document.getElementById('countdown-timer').style.display = isArchiveMode() ? 'none' : 'block';
+    if (!state.leaderboardHandled) {
+      state.leaderboardHandled = true;
+      saveState();
+      handleLeaderboard();
+    }
   } else {
     const remaining = 5 - state.guessesUsed;
     document.getElementById('guesses-remaining').textContent =
@@ -349,6 +417,35 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('stats-overlay').addEventListener('click', closeStats);
 
   document.getElementById('back-to-today').addEventListener('click', () => { window.location.href = '/'; });
+
+  const nameInput = document.getElementById('name-input');
+  const nameSubmit = document.getElementById('name-submit');
+  const nameSkip = document.getElementById('name-skip');
+  document.getElementById('name-overlay').addEventListener('click', closeNamePrompt);
+
+  nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') nameSubmit.click(); });
+
+  nameSubmit.addEventListener('click', async () => {
+    const name = nameInput.value.trim();
+    if (!name) return;
+    nameSubmit.disabled = true;
+    nameSubmit.textContent = 'Saving…';
+    const errEl = document.getElementById('name-error');
+    try {
+      await registerPlayer(name);
+      closeNamePrompt();
+    } catch {
+      errEl.textContent = 'Something went wrong — please try again.';
+      errEl.style.display = 'block';
+      nameSubmit.disabled = false;
+      nameSubmit.textContent = 'Join';
+    }
+  });
+
+  nameSkip.addEventListener('click', () => {
+    setPlayer({ uuid: null, skipped: true });
+    closeNamePrompt();
+  });
 
   const input = document.getElementById('guess-input');
   const dropdown = document.getElementById('autocomplete-dropdown');

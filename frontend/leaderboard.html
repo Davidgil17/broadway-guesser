@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Broadway Guesser — Leaderboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    #lb-header h2 {
+      font-size: clamp(1rem, 4vw, 1.3rem);
+      color: var(--text-muted);
+      font-weight: normal;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 0.5rem;
+    }
+
+    #lb-table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    tbody td {
+      padding: 0.875rem 1rem;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.9rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: rgba(255,255,255,0.03); }
+
+    .my-row td { background: rgba(201, 168, 76, 0.07); }
+    .my-row:hover td { background: rgba(201, 168, 76, 0.11); }
+
+    .rank-cell { width: 2.5rem; font-size: 1.1rem; padding-right: 0; }
+    .name-cell { font-weight: 600; }
+    .score-cell { color: var(--gold); font-weight: 700; }
+
+    .you-badge {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--bg);
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      vertical-align: middle;
+      margin-left: 0.4rem;
+    }
+
+    #lb-empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      font-size: 0.95rem;
+      display: none;
+    }
+
+    .th-hide { }
+
+    @media (max-width: 480px) {
+      .th-hide, .td-hide { display: none; }
+      thead th, tbody td { padding: 0.75rem 0.6rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header id="lb-header">
+      <div id="header-row">
+        <div class="hdr-side hdr-left"><a id="archive-link" href="/">← Today</a></div>
+        <h1>Broadway Guesser</h1>
+        <div class="hdr-side hdr-right"><a id="stats-btn" href="/archive">Archive</a></div>
+      </div>
+      <h2>Leaderboard</h2>
+    </header>
+
+    <main>
+      <div id="lb-table-wrap">
+        <p id="lb-empty">No scores yet — play today's show to get on the board!</p>
+        <table id="lb-table" style="display:none">
+          <thead>
+            <tr>
+              <th class="rank-cell">#</th>
+              <th>Name</th>
+              <th class="th-hide">Played</th>
+              <th>Win %</th>
+              <th class="th-hide">Avg Clues</th>
+              <th>Streak</th>
+              <th class="score-cell">Pts</th>
+            </tr>
+          </thead>
+          <tbody id="lb-body"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script src="/static/leaderboard.js"></script>
+</body>
+</html>

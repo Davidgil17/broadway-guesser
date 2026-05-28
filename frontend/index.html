@@ -50,12 +50,30 @@
 
         <div id="end-section" style="display:none">
           <p id="end-message"></p>
-          <button id="share-btn">Share Result</button>
+          <div id="end-buttons">
+            <button id="share-btn">Share</button>
+            <a id="leaderboard-btn" href="/leaderboard">Leaderboard</a>
+          </div>
           <p id="share-confirm" style="display:none">Copied to clipboard!</p>
           <div id="countdown-timer"></div>
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Name prompt modal -->
+  <div id="name-modal" style="display:none" role="dialog" aria-modal="true" aria-label="Join Leaderboard">
+    <div id="name-overlay"></div>
+    <div id="name-content">
+      <h2>Join the Leaderboard</h2>
+      <p>Pick a name to save your scores — your past games count too.</p>
+      <input id="name-input" type="text" placeholder="Your name" maxlength="30" autocomplete="off">
+      <p id="name-error" style="display:none"></p>
+      <div class="name-buttons">
+        <button id="name-submit">Join</button>
+        <button id="name-skip">Skip</button>
+      </div>
+    </div>
   </div>
 
   <!-- Stats modal -->
