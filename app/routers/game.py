@@ -57,3 +57,36 @@ async def post_guess(body: GuessRequest, db: AsyncSession = Depends(get_db)):
 async def get_shows(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Show.title).order_by(Show.title))
     return [row[0] for row in result.all()]
+
+
+@router.get("/archive")
+async def get_archive(db: AsyncSession = Depends(get_db)):
+    today = date.today()
+    result = await db.execute(
+        select(Show.play_date)
+        .where(Show.play_date < today)
+        .order_by(Show.play_date.desc())
+    )
+    return [str(row[0]) for row in result.all()]
+
+
+@router.get("/show/{date_str}")
+async def get_show(date_str: str, db: AsyncSession = Depends(get_db)):
+    try:
+        play_date = date.fromisoformat(date_str)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid date format")
+    result = await db.execute(select(Show).where(Show.play_date == play_date))
+    show = result.scalar_one_or_none()
+    if show is None:
+        raise HTTPException(status_code=404, detail="No show scheduled for that date")
+    return {
+        "date": date_str,
+        "clues": [
+            {"n": 1, "category": "Opening Year", "value": str(show.year)},
+            {"n": 2, "category": "Genre", "value": show.genre},
+            {"n": 3, "category": "Composer", "value": show.composer},
+            {"n": 4, "category": "Notable Cast", "value": show.notable_cast},
+            {"n": 5, "category": "Plot Hint", "value": show.plot_hint},
+        ],
+    }

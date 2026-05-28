@@ -31,20 +31,23 @@ body {
 header {
   text-align: center;
   margin-bottom: 2.5rem;
-  border-bottom: 2px solid var(--gold);
-  padding-bottom: 1.5rem;
 }
 
 #header-row {
-  position: relative;
-  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid var(--gold);
+  padding-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
-#stats-btn {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+h1 { flex: 0 0 auto; text-align: center; }
+
+.hdr-side { flex: 1; }
+.hdr-left { display: flex; justify-content: flex-start; }
+.hdr-right { display: flex; justify-content: flex-end; }
+
+#stats-btn, #archive-link {
   background: transparent;
   border: 1px solid var(--gold);
   color: var(--gold);
@@ -56,9 +59,30 @@ header {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
-#stats-btn:hover { background: var(--gold); color: var(--bg); }
+#stats-btn:hover, #archive-link:hover { background: var(--gold); color: var(--bg); }
+
+#archive-banner {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.4rem;
+}
+
+#back-to-today {
+  background: transparent;
+  border: none;
+  color: var(--gold);
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+#back-to-today:hover { color: var(--text); }
 
 h1 {
   font-size: clamp(1.75rem, 6vw, 2.75rem);
@@ -67,7 +91,7 @@ h1 {
   text-transform: uppercase;
   margin-bottom: 0;
   line-height: 1.1;
-  padding: 0 5rem;
+  white-space: nowrap;
 }
 
 #date-display {
@@ -429,6 +453,8 @@ h1 {
   color: var(--text);
 }
 
+/* ── No show ── */
+
 #no-show-message {
   text-align: center;
   padding: 3rem 1rem;
@@ -441,7 +467,11 @@ h1 {
 @media (max-width: 520px) {
   body { padding: 1.25rem 1rem 3rem; }
 
-  header { margin-bottom: 2rem; padding-bottom: 1.25rem; }
+  header { margin-bottom: 1.5rem; }
+  #header-row { padding-bottom: 0.75rem; }
+  #header-row { flex-wrap: wrap; row-gap: 0.4rem; }
+  h1 { width: 100%; order: -1; white-space: normal; }
+  #stats-btn, #archive-link { padding: 0.2rem 0.45rem; font-size: 0.7rem; }
 
   #clues-container { gap: 0.75rem; margin-bottom: 1.75rem; }
 

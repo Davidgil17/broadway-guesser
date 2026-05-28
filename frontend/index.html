@@ -10,10 +10,14 @@
   <div id="app">
     <header>
       <div id="header-row">
+        <div class="hdr-side hdr-left"><a id="archive-link" href="/archive">Archive</a></div>
         <h1>Broadway Guesser</h1>
-        <button id="stats-btn" aria-label="View statistics">Stats</button>
+        <div class="hdr-side hdr-right"><button id="stats-btn" aria-label="View statistics">Stats</button></div>
       </div>
       <p id="date-display"></p>
+      <div id="archive-banner" style="display:none">
+        <button id="back-to-today">← Back to Today</button>
+      </div>
       <div id="score-stars"></div>
     </header>
 

@@ -1,5 +1,6 @@
 const TODAY = new Date().toISOString().slice(0, 10);
-const STORAGE_KEY = `broadway_${TODAY}`;
+const urlDate = new URLSearchParams(window.location.search).get('date');
+let activeDate = (urlDate && urlDate <= TODAY) ? urlDate : TODAY;
 
 const ALL_BROADWAY_SHOWS = [
   "1776",
@@ -142,14 +143,17 @@ let activeDropdownIndex = -1;
 
 const STATS_KEY = 'broadway_stats';
 
+function storageKey() { return `broadway_${activeDate}`; }
+function isArchiveMode() { return activeDate !== TODAY; }
+
 function loadState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
+  const raw = localStorage.getItem(storageKey());
   if (raw) return JSON.parse(raw);
   return { guessesUsed: 0, solved: false, score: 0, guesses: [], answer: null, statsRecorded: false };
 }
 
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  localStorage.setItem(storageKey(), JSON.stringify(state));
 }
 
 function loadStats() {
@@ -209,19 +213,35 @@ function closeStats() {
   document.getElementById('stats-modal').style.display = 'none';
 }
 
-async function init() {
-  document.getElementById('date-display').textContent = new Date(TODAY + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+async function loadGame(date) {
+  activeDate = date;
+  state = loadState();
 
-  const todayRes = await fetch('/api/today');
+  document.getElementById('date-display').textContent = new Date(activeDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  document.getElementById('archive-banner').style.display = isArchiveMode() ? 'flex' : 'none';
 
-  if (!todayRes.ok) {
+  const res = await fetch(`/api/show/${activeDate}`);
+
+  if (!res.ok) {
     document.getElementById('no-show-message').style.display = 'block';
     document.getElementById('game-area').style.display = 'none';
     return;
   }
 
-  todayData = await todayRes.json();
+  document.getElementById('no-show-message').style.display = 'none';
+  document.getElementById('game-area').style.display = 'block';
+  todayData = await res.json();
+
+  document.getElementById('clues-container').innerHTML = '';
+  document.getElementById('end-section').style.display = 'none';
+  document.getElementById('feedback-message').textContent = '';
+  document.getElementById('feedback-message').className = '';
+
   render();
+}
+
+async function init() {
+  await loadGame(activeDate);
 }
 
 function render() {
@@ -233,9 +253,10 @@ function render() {
   document.getElementById('end-section').style.display = gameOver ? 'block' : 'none';
 
   if (gameOver) {
-    recordGameStats(state.solved, state.guessesUsed);
+    if (!isArchiveMode()) recordGameStats(state.solved, state.guessesUsed);
     renderEndState();
-    startCountdown();
+    if (!isArchiveMode()) startCountdown();
+    document.getElementById('countdown-timer').style.display = isArchiveMode() ? 'none' : 'block';
   } else {
     const remaining = 5 - state.guessesUsed;
     document.getElementById('guesses-remaining').textContent =
@@ -294,7 +315,7 @@ function shareResult() {
   const guessLine = state.solved
     ? `Got it in ${state.guessesUsed} guess${state.guessesUsed === 1 ? '' : 'es'}!`
     : `Didn't get it today`;
-  const text = `Broadway Guesser ${TODAY}\n${guessLine} ${grid}`;
+  const text = `Broadway Guesser ${activeDate}\n${guessLine} ${grid}`;
 
   if (navigator.share) {
     navigator.share({ text }).catch(() => {});
@@ -326,6 +347,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('stats-btn').addEventListener('click', openStats);
   document.getElementById('stats-close').addEventListener('click', closeStats);
   document.getElementById('stats-overlay').addEventListener('click', closeStats);
+
+  document.getElementById('back-to-today').addEventListener('click', () => { window.location.href = '/'; });
 
   const input = document.getElementById('guess-input');
   const dropdown = document.getElementById('autocomplete-dropdown');
@@ -394,7 +417,7 @@ async function submitGuess() {
   const res = await fetch('/api/guess', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ date: TODAY, guess, guesses_used: guessesUsed }),
+    body: JSON.stringify({ date: activeDate, guess, guesses_used: guessesUsed }),
   });
 
   const result = await res.json();

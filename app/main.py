@@ -17,3 +17,8 @@ app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 @app.get("/", include_in_schema=False)
 async def serve_index():
     return FileResponse(FRONTEND_DIR / "index.html")
+
+
+@app.get("/archive", include_in_schema=False)
+async def serve_archive():
+    return FileResponse(FRONTEND_DIR / "archive.html")
