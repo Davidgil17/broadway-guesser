@@ -174,10 +174,13 @@ function collectHistory() {
 }
 
 async function handleLeaderboard() {
+  if (isArchiveMode()) return;
   const player = getPlayer();
-  if (player === null && !isArchiveMode()) {
+  if (!player || !player.uuid) {
     openNamePrompt();
-  } else if (player && player.uuid) {
+  } else if (!state.scoreSent) {
+    state.scoreSent = true;
+    saveState();
     try {
       await fetch('/api/scores', {
         method: 'POST',
@@ -212,7 +215,7 @@ function closeNamePrompt() {
 function loadState() {
   const raw = localStorage.getItem(storageKey());
   if (raw) return JSON.parse(raw);
-  return { guessesUsed: 0, solved: false, score: 0, guesses: [], answer: null, statsRecorded: false, leaderboardHandled: false };
+  return { guessesUsed: 0, solved: false, score: 0, guesses: [], answer: null, statsRecorded: false, leaderboardHandled: false, scoreSent: false };
 }
 
 function saveState() {
@@ -323,8 +326,8 @@ function render() {
     if (!state.leaderboardHandled) {
       state.leaderboardHandled = true;
       saveState();
-      handleLeaderboard();
     }
+    handleLeaderboard();
   } else {
     const remaining = 5 - state.guessesUsed;
     document.getElementById('guesses-remaining').textContent =
@@ -443,7 +446,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   nameSkip.addEventListener('click', () => {
-    setPlayer({ uuid: null, skipped: true });
     closeNamePrompt();
   });
 
