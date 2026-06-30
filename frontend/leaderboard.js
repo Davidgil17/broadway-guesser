@@ -1,5 +1,41 @@
 const PLAYER_KEY = 'broadway_player';
 
+function getPlayer() {
+  const raw = localStorage.getItem(PLAYER_KEY);
+  return raw ? JSON.parse(raw) : null;
+}
+
+async function syncHistory() {
+  const player = getPlayer();
+  if (!player || !player.uuid) return;
+
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+
+  for (const key of keys) {
+    if (!key.startsWith('broadway_')) continue;
+    const dateStr = key.replace('broadway_', '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
+
+    let s;
+    try { s = JSON.parse(localStorage.getItem(key)); } catch { continue; }
+
+    if (!s.scoreSent && (s.solved || s.guessesUsed >= 5)) {
+      try {
+        const res = await fetch('/api/scores', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uuid: player.uuid, date: dateStr, solved: !!s.solved, guesses_used: s.guessesUsed || 0, score: s.score || 0 }),
+        });
+        if (res.ok) {
+          s.scoreSent = true;
+          localStorage.setItem(key, JSON.stringify(s));
+        }
+      } catch {}
+    }
+  }
+}
+
 function esc(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -59,4 +95,4 @@ async function loadLeaderboard() {
   document.getElementById('lb-table').style.display = 'table';
 }
 
-loadLeaderboard();
+syncHistory().then(loadLeaderboard);
