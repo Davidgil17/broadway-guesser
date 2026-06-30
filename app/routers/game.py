@@ -46,7 +46,11 @@ async def post_guess(body: GuessRequest, db: AsyncSession = Depends(get_db)):
     show = result.scalar_one_or_none()
     if show is None:
         raise HTTPException(status_code=404, detail="No show scheduled for that date")
-    correct = body.guess.strip().lower() == show.title.strip().lower()
+    def normalize(s: str) -> str:
+        import re
+        return re.sub(r"[^\w\s]", "", s).strip().lower()
+
+    correct = normalize(body.guess) == normalize(show.title)
     score = max(6 - body.guesses_used, 0) if correct else 0
     response: dict = {"correct": correct, "score": score}
     if correct or body.guesses_used >= 5:
