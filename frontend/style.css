@@ -1,6 +1,6 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { overflow-x: clip; }
+html, body { overflow-x: hidden; }
 
 :root {
   --bg: #1a0a00;
