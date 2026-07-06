@@ -1,3 +1,25 @@
+const THEME_KEY = 'broadway_theme';
+
+function initTheme() {
+  applyTheme(localStorage.getItem(THEME_KEY) || 'classic');
+}
+
+function applyTheme(name) {
+  document.documentElement.dataset.theme = name;
+  localStorage.setItem(THEME_KEY, name);
+  document.querySelectorAll('.theme-swatch').forEach(b => {
+    b.classList.toggle('active', b.dataset.theme === name);
+  });
+}
+
+function openThemePicker() {
+  document.getElementById('theme-modal').style.display = 'flex';
+}
+
+function closeThemePicker() {
+  document.getElementById('theme-modal').style.display = 'none';
+}
+
 const TODAY = new Date().toISOString().slice(0, 10);
 const urlDate = new URLSearchParams(window.location.search).get('date');
 let activeDate = (urlDate && urlDate <= TODAY) ? urlDate : TODAY;
@@ -456,6 +478,15 @@ function startCountdown() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+
+  document.getElementById('theme-btn').addEventListener('click', openThemePicker);
+  document.getElementById('theme-close').addEventListener('click', closeThemePicker);
+  document.getElementById('theme-overlay').addEventListener('click', closeThemePicker);
+  document.querySelectorAll('.theme-swatch').forEach(btn => {
+    btn.addEventListener('click', () => { applyTheme(btn.dataset.theme); closeThemePicker(); });
+  });
+
   document.getElementById('stats-btn').addEventListener('click', openStats);
   document.getElementById('stats-close').addEventListener('click', closeStats);
   document.getElementById('stats-overlay').addEventListener('click', closeStats);

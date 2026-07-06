@@ -10,7 +10,7 @@
   <div id="app">
     <header>
       <div id="header-row">
-        <div class="hdr-side hdr-left"><a id="archive-link" href="/archive">Archive</a></div>
+        <div class="hdr-side hdr-left"><a id="archive-link" href="/archive">Archive</a><button id="theme-btn" aria-label="Choose theme">Theme</button></div>
         <h1>Broadway Guesser</h1>
         <div class="hdr-side hdr-right"><button id="stats-btn" aria-label="View statistics">Stats</button></div>
       </div>
@@ -93,6 +93,33 @@
     </div>
   </div>
 
-  <script src="/static/game.js?v=5"></script>
+  <!-- Theme picker modal -->
+  <div id="theme-modal" style="display:none" role="dialog" aria-modal="true" aria-label="Choose Theme">
+    <div id="theme-overlay"></div>
+    <div id="theme-content">
+      <button id="theme-close" aria-label="Close">&times;</button>
+      <h2>Theme</h2>
+      <div id="theme-grid">
+        <button class="theme-swatch" data-theme="classic">
+          <span class="swatch-preview" style="background:linear-gradient(90deg,#2a1500 80%,#c9a84c 80%)"></span>
+          Classic
+        </button>
+        <button class="theme-swatch" data-theme="playbill">
+          <span class="swatch-preview" style="background:linear-gradient(90deg,#fffcf7 80%,#8b1a1a 80%)"></span>
+          Playbill
+        </button>
+        <button class="theme-swatch" data-theme="neon">
+          <span class="swatch-preview" style="background:linear-gradient(90deg,#150020 80%,#ff2d92 80%)"></span>
+          Neon
+        </button>
+        <button class="theme-swatch" data-theme="encore">
+          <span class="swatch-preview" style="background:linear-gradient(90deg,#081828 80%,#4ecdc4 80%)"></span>
+          Encore
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/game.js?v=6"></script>
 </body>
 </html>
