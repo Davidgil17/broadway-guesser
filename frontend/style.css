@@ -1,7 +1,5 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { overflow-x: hidden; }
-
 :root {
   --bg: #1a0a00;
   --surface: #2a1500;
@@ -44,6 +42,7 @@ html { overflow-x: hidden; }
 }
 
 body {
+  overflow-x: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: Georgia, 'Times New Roman', serif;
