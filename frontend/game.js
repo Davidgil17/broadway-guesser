@@ -7,7 +7,7 @@ function initTheme() {
 function applyTheme(name) {
   document.documentElement.dataset.theme = name;
   localStorage.setItem(THEME_KEY, name);
-  document.querySelectorAll('.theme-swatch').forEach(b => {
+  document.querySelectorAll('.theme-option').forEach(b => {
     b.classList.toggle('active', b.dataset.theme === name);
   });
 }
@@ -483,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('theme-btn').addEventListener('click', openThemePicker);
   document.getElementById('theme-close').addEventListener('click', closeThemePicker);
   document.getElementById('theme-overlay').addEventListener('click', closeThemePicker);
-  document.querySelectorAll('.theme-swatch').forEach(btn => {
+  document.querySelectorAll('.theme-option').forEach(btn => {
     btn.addEventListener('click', () => { applyTheme(btn.dataset.theme); closeThemePicker(); });
   });
 
