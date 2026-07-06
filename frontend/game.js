@@ -480,7 +480,7 @@ function startCountdown() {
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
 
-  document.getElementById('theme-btn').addEventListener('click', openThemePicker);
+  document.getElementById('theme-fab').addEventListener('click', openThemePicker);
   document.getElementById('theme-close').addEventListener('click', closeThemePicker);
   document.getElementById('theme-overlay').addEventListener('click', closeThemePicker);
   document.querySelectorAll('.theme-option').forEach(btn => {

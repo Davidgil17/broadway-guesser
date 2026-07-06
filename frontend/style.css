@@ -75,10 +75,9 @@ h1 { flex: 0 0 auto; text-align: center; }
 
 .hdr-side { flex: 1; }
 .hdr-left { display: flex; justify-content: flex-start; }
-.hdr-left { gap: 0.4rem; }
 .hdr-right { display: flex; justify-content: flex-end; }
 
-#theme-btn, #stats-btn, #archive-link {
+#stats-btn, #archive-link {
   background: transparent;
   border: 1px solid var(--gold);
   color: var(--gold);
@@ -94,7 +93,32 @@ h1 { flex: 0 0 auto; text-align: center; }
   white-space: nowrap;
 }
 
-#theme-btn:hover, #stats-btn:hover, #archive-link:hover { background: var(--gold); color: var(--bg); }
+#stats-btn:hover, #archive-link:hover { background: var(--gold); color: var(--bg); }
+
+#theme-fab {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--gold);
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  z-index: 100;
+}
+
+#theme-fab:hover {
+  border-color: var(--gold);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+}
 
 #archive-banner {
   display: flex;
@@ -620,7 +644,7 @@ h1 {
   #header-row { padding-bottom: 0.75rem; }
   #header-row { flex-wrap: wrap; row-gap: 0.4rem; }
   h1 { width: 100%; order: -1; white-space: normal; }
-  #theme-btn, #stats-btn, #archive-link { padding: 0.2rem 0.45rem; font-size: 0.7rem; }
+  #stats-btn, #archive-link { padding: 0.2rem 0.45rem; font-size: 0.7rem; }
 
   #clues-container { gap: 0.75rem; margin-bottom: 1.75rem; }
 
