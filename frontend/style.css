@@ -68,18 +68,25 @@ header {
 #header-row {
   display: flex;
   align-items: center;
+  gap: 0.75rem;
   border-bottom: 2px solid var(--gold);
   padding-bottom: 1rem;
   margin-bottom: 0.75rem;
 }
 
-h1 { flex: 0 0 auto; text-align: center; }
+h1 { flex: 0 1 auto; min-width: 0; text-align: center; }
 
-.hdr-side { flex: 1; }
+.hdr-side { flex: 1 1 0; min-width: 0; }
 .hdr-left { display: flex; justify-content: flex-start; }
 .hdr-right { display: flex; justify-content: flex-end; }
 
+/* Inline-flex + min-height so the <a> and the <button> render as identical
+   pills — an inline <a> would baseline-align and sit lower than the button. */
 #stats-btn, #archive-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
   background: transparent;
   border: 1px solid var(--gold);
   color: var(--gold);
@@ -88,6 +95,7 @@ h1 { flex: 0 0 auto; text-align: center; }
   font-family: 'Helvetica Neue', Arial, sans-serif;
   font-size: 0.75rem;
   font-weight: 700;
+  line-height: 1;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   cursor: pointer;
@@ -142,9 +150,9 @@ h1 { flex: 0 0 auto; text-align: center; }
 #back-to-today:hover { color: var(--text); }
 
 h1 {
-  font-size: clamp(1.75rem, 6vw, 2.75rem);
+  font-size: clamp(1.25rem, 4.6vw, 2rem);
   color: var(--gold);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   margin-bottom: 0;
   line-height: 1.1;
@@ -644,9 +652,10 @@ h1 {
 
   header { margin-bottom: 1.5rem; }
   #header-row { padding-bottom: 0.75rem; }
-  #header-row { flex-wrap: wrap; row-gap: 0.4rem; }
-  h1 { width: 100%; order: -1; white-space: normal; }
-  #stats-btn, #archive-link { padding: 0.2rem 0.45rem; font-size: 0.7rem; }
+  #header-row { flex-wrap: wrap; row-gap: 0.5rem; }
+  /* Title takes its own full-width line here, so it can stay larger. */
+  h1 { width: 100%; order: -1; white-space: normal; font-size: clamp(1.5rem, 7vw, 2rem); }
+  #stats-btn, #archive-link { padding: 0.2rem 0.5rem; font-size: 0.7rem; min-height: 28px; }
 
   #clues-container { gap: 0.75rem; margin-bottom: 1.75rem; }
 
