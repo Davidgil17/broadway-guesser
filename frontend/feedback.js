@@ -39,7 +39,7 @@ function buildFeedback() {
   footer.className = 'site-footer';
   const link = document.createElement('button');
   link.id = 'fb-link';
-  link.textContent = 'Feedback';
+  link.textContent = 'Submit Feedback';
   footer.append(link);
   document.getElementById('app').append(footer);
 
