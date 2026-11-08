@@ -880,7 +880,7 @@ h1 {
 
   #end-section { padding: 1.5rem 1rem; }
 
-  #share-btn { width: 100%; }
+  #share-btn, #leaderboard-btn { width: 100%; }
 }
 
 /* ── Theme picker modal ── */
