@@ -48,6 +48,12 @@ function esc(str) {
     .replace(/"/g, '&quot;');
 }
 
+// Must match public_id() in app/routers/game.py: first 16 hex chars of sha256(uuid).
+async function publicId(uuid) {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(uuid));
+  return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
+}
+
 function rankSymbol(i) {
   if (i === 0) return '🥇';
   if (i === 1) return '🥈';
@@ -73,14 +79,16 @@ async function loadLeaderboard() {
   }
 
   const player = JSON.parse(localStorage.getItem(PLAYER_KEY) || 'null');
-  const myUuid = player && player.uuid ? player.uuid : null;
+  // The API publishes a hash of each uuid, never the uuid itself, so hash ours to find our row.
+  const myId = player && player.uuid ? await publicId(player.uuid) : null;
 
   const tbody = document.getElementById('lb-body');
   data.forEach((row, i) => {
     const tr = document.createElement('tr');
-    if (myUuid && row.uuid === myUuid) tr.classList.add('my-row');
+    const isMe = myId !== null && row.id === myId;
+    if (isMe) tr.classList.add('my-row');
 
-    const youBadge = (myUuid && row.uuid === myUuid)
+    const youBadge = isMe
       ? '<span class="you-badge">you</span>'
       : '';
 

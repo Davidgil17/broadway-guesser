@@ -19,7 +19,8 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(lifespan=lifespan)
+# No public API docs: they only map the endpoints out for anyone probing them.
+app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
 # broadwayguesser.com is served as static files by GitHub Pages and calls this
 # API cross-origin. The JSON POSTs preflight, so OPTIONS has to be answered too.

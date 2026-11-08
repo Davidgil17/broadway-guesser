@@ -1,7 +1,9 @@
-from datetime import date
+import hashlib
+import re
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -11,6 +13,42 @@ from ..models import Show, Player, Score
 
 router = APIRouter(prefix="/api")
 
+MAX_GUESSES = 5
+UUID_PATTERN = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+# One day of slack so a client whose clock is slightly ahead is never locked out.
+DATE_SLACK = timedelta(days=1)
+
+
+def public_id(uuid: str) -> str:
+    """One-way id for the leaderboard. The uuid itself acts as the player's
+    password, so it must never be published."""
+    return hashlib.sha256(uuid.encode()).hexdigest()[:16]
+
+
+def points_for(solved: bool, guesses_used: int) -> int:
+    return MAX_GUESSES + 1 - guesses_used if solved else 0
+
+
+def parse_playable_date(value: str) -> date:
+    """A date the game has reached: valid ISO format and not in the future."""
+    try:
+        d = date.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid date format")
+    if d > date.today() + DATE_SLACK:
+        raise HTTPException(status_code=404, detail="No show scheduled for that date")
+    return d
+
+
+def clues_for(show: Show) -> list[dict]:
+    return [
+        {"n": 1, "category": "Opening Year", "value": str(show.year)},
+        {"n": 2, "category": "Genre", "value": show.genre},
+        {"n": 3, "category": "Composer", "value": show.composer},
+        {"n": 4, "category": "Notable Cast", "value": show.notable_cast},
+        {"n": 5, "category": "Plot Hint", "value": show.plot_hint},
+    ]
+
 
 @router.get("/today")
 async def get_today(db: AsyncSession = Depends(get_db)):
@@ -18,42 +56,30 @@ async def get_today(db: AsyncSession = Depends(get_db)):
     show = result.scalar_one_or_none()
     if show is None:
         raise HTTPException(status_code=404, detail="No show scheduled for today")
-    return {
-        "date": str(date.today()),
-        "clues": [
-            {"n": 1, "category": "Opening Year", "value": str(show.year)},
-            {"n": 2, "category": "Genre", "value": show.genre},
-            {"n": 3, "category": "Composer", "value": show.composer},
-            {"n": 4, "category": "Notable Cast", "value": show.notable_cast},
-            {"n": 5, "category": "Plot Hint", "value": show.plot_hint},
-        ],
-    }
+    return {"date": str(date.today()), "clues": clues_for(show)}
 
 
 class GuessRequest(BaseModel):
-    date: str
-    guess: str
-    guesses_used: int
+    date: str = Field(max_length=10)
+    guess: str = Field(max_length=200)
+    guesses_used: int = Field(ge=1, le=MAX_GUESSES)
+
+
+def normalize(s: str) -> str:
+    return re.sub(r"[^\w\s]", "", s).strip().lower()
 
 
 @router.post("/guess")
 async def post_guess(body: GuessRequest, db: AsyncSession = Depends(get_db)):
-    try:
-        play_date = date.fromisoformat(body.date)
-    except ValueError:
-        raise HTTPException(status_code=422, detail="Invalid date format")
+    play_date = parse_playable_date(body.date)
     result = await db.execute(select(Show).where(Show.play_date == play_date))
     show = result.scalar_one_or_none()
     if show is None:
         raise HTTPException(status_code=404, detail="No show scheduled for that date")
-    def normalize(s: str) -> str:
-        import re
-        return re.sub(r"[^\w\s]", "", s).strip().lower()
 
     correct = normalize(body.guess) == normalize(show.title)
-    score = max(6 - body.guesses_used, 0) if correct else 0
-    response: dict = {"correct": correct, "score": score}
-    if correct or body.guesses_used >= 5:
+    response: dict = {"correct": correct, "score": points_for(correct, body.guesses_used)}
+    if correct or body.guesses_used >= MAX_GUESSES:
         response["answer"] = show.title
     return response
 
@@ -76,35 +102,52 @@ async def get_archive(db: AsyncSession = Depends(get_db)):
 
 
 class ScoreEntry(BaseModel):
-    date: str
+    date: str = Field(max_length=10)
     solved: bool
     guesses_used: int
-    score: int
+    score: int = 0  # ignored: the server works out points itself
 
 
 class RegisterRequest(BaseModel):
-    uuid: str
-    name: str
-    history: list[ScoreEntry] = []
+    uuid: str = Field(pattern=UUID_PATTERN)
+    name: str = Field(min_length=1, max_length=100)
+    history: list[ScoreEntry] = Field(default=[], max_length=1000)
+
+
+def valid_result(solved: bool, guesses_used: int) -> bool:
+    # A solved game used 1-5 guesses; an unsolved one used all 5.
+    return (1 <= guesses_used <= MAX_GUESSES) if solved else guesses_used == MAX_GUESSES
+
+
+async def scheduled_dates(db: AsyncSession) -> set[date]:
+    limit = date.today() + DATE_SLACK
+    result = await db.execute(select(Show.play_date).where(Show.play_date <= limit))
+    return {row[0] for row in result.all()}
 
 
 @router.post("/register")
 async def register_player(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    stmt = pg_insert(Player).values(uuid=body.uuid, display_name=body.name.strip()[:30])
-    stmt = stmt.on_conflict_do_update(index_elements=["uuid"], set_={"display_name": body.name.strip()[:30]})
+    name = body.name.strip()[:30]
+    if not name:
+        raise HTTPException(status_code=422, detail="Name is required")
+    stmt = pg_insert(Player).values(uuid=body.uuid, display_name=name)
+    stmt = stmt.on_conflict_do_update(index_elements=["uuid"], set_={"display_name": name})
     await db.execute(stmt)
 
+    playable = await scheduled_dates(db)
     for entry in body.history:
         try:
             play_date = date.fromisoformat(entry.date)
         except ValueError:
+            continue
+        if play_date not in playable or not valid_result(entry.solved, entry.guesses_used):
             continue
         score_stmt = pg_insert(Score).values(
             player_uuid=body.uuid,
             play_date=play_date,
             solved=entry.solved,
             guesses_used=entry.guesses_used,
-            score=entry.score,
+            score=points_for(entry.solved, entry.guesses_used),
         ).on_conflict_do_nothing()
         await db.execute(score_stmt)
 
@@ -113,28 +156,29 @@ async def register_player(body: RegisterRequest, db: AsyncSession = Depends(get_
 
 
 class ScoreRequest(BaseModel):
-    uuid: str
-    date: str
+    uuid: str = Field(pattern=UUID_PATTERN)
+    date: str = Field(max_length=10)
     solved: bool
     guesses_used: int
-    score: int
+    score: int = 0  # ignored: the server works out points itself
 
 
 @router.post("/scores")
 async def post_score(body: ScoreRequest, db: AsyncSession = Depends(get_db)):
+    if not valid_result(body.solved, body.guesses_used):
+        raise HTTPException(status_code=422, detail="Impossible result")
+    play_date = parse_playable_date(body.date)
     result = await db.execute(select(Player).where(Player.uuid == body.uuid))
     if result.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Player not found")
-    try:
-        play_date = date.fromisoformat(body.date)
-    except ValueError:
-        raise HTTPException(status_code=422, detail="Invalid date")
+    if play_date not in await scheduled_dates(db):
+        raise HTTPException(status_code=404, detail="No show scheduled for that date")
     stmt = pg_insert(Score).values(
         player_uuid=body.uuid,
         play_date=play_date,
         solved=body.solved,
         guesses_used=body.guesses_used,
-        score=body.score,
+        score=points_for(body.solved, body.guesses_used),
     ).on_conflict_do_nothing()
     await db.execute(stmt)
     await db.commit()
@@ -170,7 +214,7 @@ async def get_leaderboard(db: AsyncSession = Depends(get_db)):
             else:
                 break
         leaderboard.append({
-            "uuid": uuid,
+            "id": public_id(uuid),
             "name": data["name"],
             "played": played,
             "won": won,
@@ -186,21 +230,9 @@ async def get_leaderboard(db: AsyncSession = Depends(get_db)):
 
 @router.get("/show/{date_str}")
 async def get_show(date_str: str, db: AsyncSession = Depends(get_db)):
-    try:
-        play_date = date.fromisoformat(date_str)
-    except ValueError:
-        raise HTTPException(status_code=422, detail="Invalid date format")
+    play_date = parse_playable_date(date_str)
     result = await db.execute(select(Show).where(Show.play_date == play_date))
     show = result.scalar_one_or_none()
     if show is None:
         raise HTTPException(status_code=404, detail="No show scheduled for that date")
-    return {
-        "date": date_str,
-        "clues": [
-            {"n": 1, "category": "Opening Year", "value": str(show.year)},
-            {"n": 2, "category": "Genre", "value": show.genre},
-            {"n": 3, "category": "Composer", "value": show.composer},
-            {"n": 4, "category": "Notable Cast", "value": show.notable_cast},
-            {"n": 5, "category": "Plot Hint", "value": show.plot_hint},
-        ],
-    }
+    return {"date": date_str, "clues": clues_for(show)}
