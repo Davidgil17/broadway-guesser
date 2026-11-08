@@ -33,3 +33,17 @@ class Score(Base):
     score = Column(Integer, nullable=False, default=0)
 
     __table_args__ = (UniqueConstraint("player_uuid", "play_date", name="uq_player_date"),)
+
+
+class Play(Base):
+    """Server-side record of a player's game for one date. The server counts
+    guesses here, so a score can only come from guesses it actually saw."""
+    __tablename__ = "plays"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    player_uuid = Column(Text, nullable=False)
+    play_date = Column(Date, nullable=False)
+    guesses_used = Column(Integer, nullable=False, default=0)
+    solved = Column(Boolean, nullable=False, default=False)
+
+    __table_args__ = (UniqueConstraint("player_uuid", "play_date", name="uq_play_player_date"),)

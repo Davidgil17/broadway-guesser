@@ -317,6 +317,21 @@ function setPlayer(data) {
   localStorage.setItem(PLAYER_KEY, JSON.stringify(data));
 }
 
+// The id the server counts guesses under. A registered player's uuid, or an id
+// made on first visit that registration later adopts, so games played before
+// picking a name still reach the leaderboard.
+const ANON_ID_KEY = 'broadway_anon_id';
+function getPlayerId() {
+  const player = getPlayer();
+  if (player && player.uuid) return player.uuid;
+  let id = localStorage.getItem(ANON_ID_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(ANON_ID_KEY, id);
+  }
+  return id;
+}
+
 function collectHistory() {
   const history = [];
   for (let i = 0; i < localStorage.length; i++) {
@@ -352,7 +367,7 @@ async function handleLeaderboard() {
 }
 
 async function registerPlayer(name) {
-  const uuid = crypto.randomUUID();
+  const uuid = getPlayerId();
   const history = collectHistory();
   const res = await fetch(`${API_BASE}/api/register`, {
     method: 'POST',
@@ -758,16 +773,47 @@ async function submitGuess() {
   const guess = input.value.trim();
   if (!guess) return;
 
-  const guessesUsed = state.guessesUsed + 1;
   const feedback = document.getElementById('feedback-message');
 
-  const res = await fetch(`${API_BASE}/api/guess`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ date: activeDate, guess, guesses_used: guessesUsed }),
-  });
+  let res, result;
+  try {
+    res = await fetch(`${API_BASE}/api/guess`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: activeDate, guess, guesses_used: state.guessesUsed + 1, uuid: getPlayerId() }),
+    });
+    result = await res.json();
+  } catch {
+    feedback.className = 'error';
+    feedback.textContent = `Couldn't reach the server. Try again.`;
+    return;
+  }
 
-  const result = await res.json();
+  if (res.status === 409 && result.detail) {
+    // The server already has a finished game for this date: restore it.
+    const done = result.detail;
+    state.guessesUsed = done.guesses_used;
+    state.solved = done.solved;
+    state.score = done.score;
+    state.answer = done.answer;
+    feedback.className = done.solved ? '' : 'error';
+    feedback.textContent = done.message;
+    input.value = '';
+    saveState();
+    render();
+    return;
+  }
+  if (!res.ok) {
+    // Not counted (rate limited or rejected), so the guess is not used up.
+    feedback.className = 'error';
+    feedback.textContent = res.status === 429
+      ? 'Too many guesses too fast. Wait a moment and try again.'
+      : `That guess couldn't be checked. Try again.`;
+    return;
+  }
+
+  // The server counts guesses; follow its count if it differs from ours.
+  const guessesUsed = Math.max(result.guesses_used || 0, state.guessesUsed + 1);
   state.guessesUsed = guessesUsed;
   state.guesses.push(guess);
 

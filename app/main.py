@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .database import engine, Base
+from .ratelimit import RateLimitMiddleware
 from .routers.game import router
 
 FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
@@ -21,6 +22,10 @@ async def lifespan(app: FastAPI):
 
 # No public API docs: they only map the endpoints out for anyone probing them.
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+
+# Added before CORS so CORS wraps it: a 429 still carries CORS headers and the
+# browser can read it instead of reporting a network error.
+app.add_middleware(RateLimitMiddleware)
 
 # broadwayguesser.com is served as static files by GitHub Pages and calls this
 # API cross-origin. The JSON POSTs preflight, so OPTIONS has to be answered too.

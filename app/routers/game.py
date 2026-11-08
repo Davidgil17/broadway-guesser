@@ -2,14 +2,16 @@ import hashlib
 import re
 from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from ..database import get_db
-from ..models import Show, Player, Score
+from ..models import Show, Player, Score, Play
+from ..ratelimit import client_ip
 
 router = APIRouter(prefix="/api")
 
@@ -17,6 +19,11 @@ MAX_GUESSES = 5
 UUID_PATTERN = r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 # One day of slack so a client whose clock is slightly ahead is never locked out.
 DATE_SLACK = timedelta(days=1)
+
+
+def insert_for(db: AsyncSession):
+    """Upserts are dialect-specific: Postgres in production, SQLite in tests."""
+    return sqlite_insert if db.get_bind().dialect.name == "sqlite" else pg_insert
 
 
 def public_id(uuid: str) -> str:
@@ -59,14 +66,35 @@ async def get_today(db: AsyncSession = Depends(get_db)):
     return {"date": str(date.today()), "clues": clues_for(show)}
 
 
+@router.get("/whoami")
+async def whoami(request: Request):
+    """Echoes the address the rate limiter keys on, to check proxy settings."""
+    return {"ip": client_ip(request)}
+
+
 class GuessRequest(BaseModel):
     date: str = Field(max_length=10)
     guess: str = Field(max_length=200)
-    guesses_used: int = Field(ge=1, le=MAX_GUESSES)
+    # Used only when no uuid is sent; with a uuid the server keeps its own count.
+    guesses_used: int = Field(default=1, ge=1, le=MAX_GUESSES)
+    uuid: str | None = Field(default=None, pattern=UUID_PATTERN)
 
 
 def normalize(s: str) -> str:
     return re.sub(r"[^\w\s]", "", s).strip().lower()
+
+
+async def count_guess(db: AsyncSession, uuid: str, play_date: date) -> int | None:
+    """Atomically take the next guess for this player and date. Returns its
+    number (1-5), or None when that game is already over."""
+    insert = insert_for(db)
+    stmt = insert(Play).values(player_uuid=uuid, play_date=play_date, guesses_used=1, solved=False)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["player_uuid", "play_date"],
+        set_={"guesses_used": Play.guesses_used + 1},
+        where=(Play.solved == False) & (Play.guesses_used < MAX_GUESSES),  # noqa: E712
+    ).returning(Play.guesses_used)
+    return (await db.execute(stmt)).scalar_one_or_none()
 
 
 @router.post("/guess")
@@ -78,8 +106,52 @@ async def post_guess(body: GuessRequest, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="No show scheduled for that date")
 
     correct = normalize(body.guess) == normalize(show.title)
-    response: dict = {"correct": correct, "score": points_for(correct, body.guesses_used)}
-    if correct or body.guesses_used >= MAX_GUESSES:
+
+    if body.uuid is None:
+        # Untracked play (an old cached page): answer the guess, record nothing.
+        guesses_used = body.guesses_used
+    else:
+        guesses_used = await count_guess(db, body.uuid, play_date)
+        if guesses_used is None:
+            # Finished earlier, e.g. on another device or before storage was
+            # cleared. Send the real result so the page can restore it.
+            play = (await db.execute(
+                select(Play).where(Play.player_uuid == body.uuid, Play.play_date == play_date)
+            )).scalar_one()
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "You've already finished this puzzle.",
+                    "answer": show.title,
+                    "solved": play.solved,
+                    "guesses_used": play.guesses_used,
+                    "score": points_for(play.solved, play.guesses_used),
+                },
+            )
+        if correct:
+            await db.execute(
+                update(Play)
+                .where(Play.player_uuid == body.uuid, Play.play_date == play_date)
+                .values(solved=True)
+            )
+        if correct or guesses_used >= MAX_GUESSES:
+            await db.execute(
+                insert_for(db)(Score).values(
+                    player_uuid=body.uuid,
+                    play_date=play_date,
+                    solved=correct,
+                    guesses_used=guesses_used,
+                    score=points_for(correct, guesses_used),
+                ).on_conflict_do_nothing()
+            )
+        await db.commit()
+
+    response: dict = {
+        "correct": correct,
+        "score": points_for(correct, guesses_used),
+        "guesses_used": guesses_used,
+    }
+    if correct or guesses_used >= MAX_GUESSES:
         response["answer"] = show.title
     return response
 
@@ -101,28 +173,12 @@ async def get_archive(db: AsyncSession = Depends(get_db)):
     return [str(row[0]) for row in result.all()]
 
 
-class ScoreEntry(BaseModel):
-    date: str = Field(max_length=10)
-    solved: bool
-    guesses_used: int
-    score: int = 0  # ignored: the server works out points itself
-
-
 class RegisterRequest(BaseModel):
     uuid: str = Field(pattern=UUID_PATTERN)
     name: str = Field(min_length=1, max_length=100)
-    history: list[ScoreEntry] = Field(default=[], max_length=1000)
-
-
-def valid_result(solved: bool, guesses_used: int) -> bool:
-    # A solved game used 1-5 guesses; an unsolved one used all 5.
-    return (1 <= guesses_used <= MAX_GUESSES) if solved else guesses_used == MAX_GUESSES
-
-
-async def scheduled_dates(db: AsyncSession) -> set[date]:
-    limit = date.today() + DATE_SLACK
-    result = await db.execute(select(Show.play_date).where(Show.play_date <= limit))
-    return {row[0] for row in result.all()}
+    # Older pages still send their local history. It is ignored: scores come
+    # only from guesses the server counted (see /guess).
+    history: list = Field(default=[], max_length=1000)
 
 
 @router.post("/register")
@@ -130,58 +186,17 @@ async def register_player(body: RegisterRequest, db: AsyncSession = Depends(get_
     name = body.name.strip()[:30]
     if not name:
         raise HTTPException(status_code=422, detail="Name is required")
-    stmt = pg_insert(Player).values(uuid=body.uuid, display_name=name)
+    stmt = insert_for(db)(Player).values(uuid=body.uuid, display_name=name)
     stmt = stmt.on_conflict_do_update(index_elements=["uuid"], set_={"display_name": name})
     await db.execute(stmt)
-
-    playable = await scheduled_dates(db)
-    for entry in body.history:
-        try:
-            play_date = date.fromisoformat(entry.date)
-        except ValueError:
-            continue
-        if play_date not in playable or not valid_result(entry.solved, entry.guesses_used):
-            continue
-        score_stmt = pg_insert(Score).values(
-            player_uuid=body.uuid,
-            play_date=play_date,
-            solved=entry.solved,
-            guesses_used=entry.guesses_used,
-            score=points_for(entry.solved, entry.guesses_used),
-        ).on_conflict_do_nothing()
-        await db.execute(score_stmt)
-
     await db.commit()
     return {"ok": True}
 
 
-class ScoreRequest(BaseModel):
-    uuid: str = Field(pattern=UUID_PATTERN)
-    date: str = Field(max_length=10)
-    solved: bool
-    guesses_used: int
-    score: int = 0  # ignored: the server works out points itself
-
-
 @router.post("/scores")
-async def post_score(body: ScoreRequest, db: AsyncSession = Depends(get_db)):
-    if not valid_result(body.solved, body.guesses_used):
-        raise HTTPException(status_code=422, detail="Impossible result")
-    play_date = parse_playable_date(body.date)
-    result = await db.execute(select(Player).where(Player.uuid == body.uuid))
-    if result.scalar_one_or_none() is None:
-        raise HTTPException(status_code=404, detail="Player not found")
-    if play_date not in await scheduled_dates(db):
-        raise HTTPException(status_code=404, detail="No show scheduled for that date")
-    stmt = pg_insert(Score).values(
-        player_uuid=body.uuid,
-        play_date=play_date,
-        solved=body.solved,
-        guesses_used=body.guesses_used,
-        score=points_for(body.solved, body.guesses_used),
-    ).on_conflict_do_nothing()
-    await db.execute(stmt)
-    await db.commit()
+async def post_score():
+    """Kept so older cached pages get a success and stop retrying. Scores are
+    now recorded by /guess as the game is played; claims sent here are ignored."""
     return {"ok": True}
 
 
