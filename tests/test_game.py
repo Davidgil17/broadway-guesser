@@ -268,7 +268,8 @@ async def test_whoami_uses_trusted_hop(client, monkeypatch):
 
 
 async def test_rate_limit_returns_429_with_retry_after(client, today_show):
-    for i in range(60):
+    _, limit, _window = ratelimit._rule_for("POST", "/api/guess")
+    for i in range(limit):
         r = await client.post("/api/guess", json={"date": TODAY, "guess": "x", "guesses_used": 1},
                               headers={"X-Forwarded-For": "198.51.100.1, 10.0.0.2"})
         assert r.status_code == 200, i
@@ -284,7 +285,8 @@ async def test_rate_limit_returns_429_with_retry_after(client, today_show):
 
 def test_rate_limit_window_expires():
     ratelimit.reset()
-    for _ in range(10):
+    _, limit, window = ratelimit._rule_for("POST", "/api/register")
+    for _ in range(limit):
         assert ratelimit.check("1.2.3.4", "POST", "/api/register", now=0) is None
     assert ratelimit.check("1.2.3.4", "POST", "/api/register", now=1) is not None
-    assert ratelimit.check("1.2.3.4", "POST", "/api/register", now=3601) is None
+    assert ratelimit.check("1.2.3.4", "POST", "/api/register", now=window + 1) is None

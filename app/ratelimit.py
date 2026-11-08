@@ -1,4 +1,4 @@
-"""Per-IP rate limiting, kept in memory.
+"""Rate limiting, kept in memory.
 
 uvicorn runs a single worker, so one in-process table sees every request.
 A restart clears it, which is fine for a limiter.
@@ -9,9 +9,24 @@ it received the request from, so the entry TRUSTED_PROXY_HOPS from the right
 is the one our outermost trusted proxy saw. Entries further left are supplied
 by the visitor and can be forged, so they are never used.
 
-Getting the hop count wrong in one direction lumps every visitor into one
-bucket, which would throttle the whole site. Check it after a deploy with
-GET /api/whoami, which should show your own public IP.
+On this deployment the visitor's address never arrives. The outer proxy
+(dz-core, which we do not control) strips X-Forwarded-For and adds nothing, so
+our own Caddy sets it to just its peer and GET /api/whoami reports
+192.168.122.1 for every request on the internet. No hop count recovers an
+address that was never sent.
+
+So these limits are one site-wide ceiling, not per-visitor fairness, and they
+are sized for that: high enough that real traffic never reaches them, low
+enough to stop a runaway client or a scraper. The original per-IP values would
+have capped the whole site at ten registrations an hour.
+
+The X-Forwarded-For logic stays because it is correct and costs nothing: if
+dz-core is ever configured to forward the client address, per-IP buckets resume
+by themselves and these limits should come back down. Verify with
+GET /api/whoami, which shows the address actually being keyed on.
+
+Nothing here is forgeable: because dz-core strips an inbound X-Forwarded-For,
+a visitor cannot choose their own bucket.
 """
 
 import os
@@ -27,10 +42,10 @@ ENABLED = os.environ.get("RATE_LIMIT", "on").lower() != "off"
 
 # (method, path prefix) -> (max requests, window seconds). First match wins.
 RULES: list[tuple[str, str, int, int]] = [
-    ("POST", "/api/register", 10, 3600),
-    ("POST", "/api/guess", 60, 60),
-    ("POST", "/api/scores", 60, 60),
-    ("GET", "/api/", 240, 60),
+    ("POST", "/api/register", 200, 3600),
+    ("POST", "/api/guess", 300, 60),
+    ("POST", "/api/scores", 300, 60),
+    ("GET", "/api/", 1200, 60),
 ]
 
 _hits: dict[tuple[str, str], deque] = {}
