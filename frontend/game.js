@@ -20,6 +20,11 @@ function closeThemePicker() {
   document.getElementById('theme-modal').style.display = 'none';
 }
 
+// Absolute so the Pages copy on broadwayguesser.com can reach the API, which is
+// only served from the VM. Resolves same-origin when served from the VM itself.
+const API_BASE = 'https://broadway.dg.darrigozik.com';
+const CANONICAL_HOST = 'broadwayguesser.com';
+
 const TODAY = new Date().toISOString().slice(0, 10);
 const urlDate = new URLSearchParams(window.location.search).get('date');
 let activeDate = (urlDate && urlDate <= TODAY) ? urlDate : TODAY;
@@ -337,7 +342,7 @@ async function handleLeaderboard() {
     state.scoreSent = true;
     saveState();
     try {
-      await fetch('/api/scores', {
+      await fetch(`${API_BASE}/api/scores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ uuid: player.uuid, date: activeDate, solved: state.solved, guesses_used: state.guessesUsed, score: state.score || 0 }),
@@ -349,7 +354,7 @@ async function handleLeaderboard() {
 async function registerPlayer(name) {
   const uuid = crypto.randomUUID();
   const history = collectHistory();
-  const res = await fetch('/api/register', {
+  const res = await fetch(`${API_BASE}/api/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ uuid, name, history }),
@@ -385,6 +390,51 @@ function loadStats() {
 
 function saveStats(stats) {
   localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+}
+
+// localStorage is per-origin, so a player moving from the VM host to
+// broadwayguesser.com would otherwise arrive with a reset streak. The old origin
+// hands the identity over in the URL fragment, which never reaches the server.
+function carryUrl() {
+  const player = getPlayer();
+  const payload = { s: loadStats() };
+  if (player && player.uuid) {
+    payload.u = player.uuid;
+    payload.n = player.name;
+  }
+  return `https://${CANONICAL_HOST}/#carry=${encodeURIComponent(JSON.stringify(payload))}`;
+}
+
+function adoptCarriedProgress() {
+  const match = /(?:^|&)carry=([^&]+)/.exec(window.location.hash.slice(1));
+  if (!match) return;
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+
+  let payload;
+  try { payload = JSON.parse(decodeURIComponent(match[1])); } catch { return; }
+
+  if (payload.u && !getPlayer()) setPlayer({ uuid: payload.u, name: payload.n || 'Player' });
+  if (payload.s && loadStats().played === 0) saveStats(payload.s);
+}
+
+function showMoveBanner() {
+  const host = window.location.hostname;
+  if (host === CANONICAL_HOST || host === `www.${CANONICAL_HOST}`) return;
+  if (host === 'localhost' || host === '127.0.0.1') return;
+  if (loadStats().played === 0 && !getPlayer()) return;
+
+  const bar = document.createElement('div');
+  bar.className = 'move-banner';
+  const link = document.createElement('a');
+  link.href = carryUrl();
+  link.textContent = 'Play at broadwayguesser.com →';
+  // Rebuilt on click so a game finished since page load is carried too.
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = carryUrl();
+  });
+  bar.append('We moved. ', link, ' Your streak comes with you.');
+  document.getElementById('app').prepend(bar);
 }
 
 function recordGameStats(won, guessesUsed) {
@@ -441,7 +491,7 @@ async function loadGame(date) {
   document.getElementById('date-display').textContent = new Date(activeDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   document.getElementById('archive-banner').style.display = isArchiveMode() ? 'flex' : 'none';
 
-  const res = await fetch(`/api/show/${activeDate}`);
+  const res = await fetch(`${API_BASE}/api/show/${activeDate}`);
 
   if (!res.ok) {
     document.getElementById('no-show-message').style.display = 'block';
@@ -478,7 +528,7 @@ async function syncHistory() {
 
     if (!s.scoreSent && (s.solved || s.guessesUsed >= 5)) {
       try {
-        const res = await fetch('/api/scores', {
+        const res = await fetch(`${API_BASE}/api/scores`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ uuid: player.uuid, date: dateStr, solved: !!s.solved, guesses_used: s.guessesUsed || 0, score: s.score || 0 }),
@@ -602,7 +652,9 @@ function startCountdown() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  adoptCarriedProgress();
   initTheme();
+  showMoveBanner();
 
   document.getElementById('theme-fab').addEventListener('click', openThemePicker);
   document.getElementById('theme-close').addEventListener('click', closeThemePicker);
@@ -709,7 +761,7 @@ async function submitGuess() {
   const guessesUsed = state.guessesUsed + 1;
   const feedback = document.getElementById('feedback-message');
 
-  const res = await fetch('/api/guess', {
+  const res = await fetch(`${API_BASE}/api/guess`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ date: activeDate, guess, guesses_used: guessesUsed }),

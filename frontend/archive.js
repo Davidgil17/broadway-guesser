@@ -1,3 +1,7 @@
+// Absolute so the Pages copy on broadwayguesser.com can reach the API, which is
+// only served from the VM. Resolves same-origin when served from the VM itself.
+const API_BASE = 'https://broadway.dg.darrigozik.com';
+
 const TODAY = new Date().toISOString().slice(0, 10);
 const DAY_HEADERS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
@@ -6,7 +10,7 @@ let earliestMonth = null; // { year, month }
 let currentMonth = null;  // { year, month }
 
 async function init() {
-  const res = await fetch('/api/archive');
+  const res = await fetch(`${API_BASE}/api/archive`);
   const pastDates = await res.json();
 
   pastDates.forEach(d => showDates.add(d));

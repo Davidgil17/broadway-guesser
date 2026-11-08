@@ -1,0 +1,46 @@
+name: Deploy frontend to Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The HTML asks for /static/* and links to the extensionless /archive and
+      # /leaderboard, which FastAPI routes by hand. Mirroring that shape here
+      # means no path in the frontend has to change.
+      - name: Assemble site
+        run: |
+          mkdir -p _site/static _site/archive _site/leaderboard
+          cp frontend/* _site/static/
+          cp frontend/index.html _site/index.html
+          cp frontend/archive.html _site/archive/index.html
+          cp frontend/leaderboard.html _site/leaderboard/index.html
+          echo broadwayguesser.com > _site/CNAME
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

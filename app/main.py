@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -19,6 +20,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+# broadwayguesser.com is served as static files by GitHub Pages and calls this
+# API cross-origin. The JSON POSTs preflight, so OPTIONS has to be answered too.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://broadwayguesser.com", "https://www.broadwayguesser.com"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
+)
+
 app.include_router(router)
 
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")

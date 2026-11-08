@@ -1,3 +1,7 @@
+// Absolute so the Pages copy on broadwayguesser.com can reach the API, which is
+// only served from the VM. Resolves same-origin when served from the VM itself.
+const API_BASE = 'https://broadway.dg.darrigozik.com';
+
 const PLAYER_KEY = 'broadway_player';
 
 function getPlayer() {
@@ -22,7 +26,7 @@ async function syncHistory() {
 
     if (!s.scoreSent && (s.solved || s.guessesUsed >= 5)) {
       try {
-        const res = await fetch('/api/scores', {
+        const res = await fetch(`${API_BASE}/api/scores`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ uuid: player.uuid, date: dateStr, solved: !!s.solved, guesses_used: s.guessesUsed || 0, score: s.score || 0 }),
@@ -54,7 +58,7 @@ function rankSymbol(i) {
 async function loadLeaderboard() {
   let data;
   try {
-    const res = await fetch('/api/leaderboard');
+    const res = await fetch(`${API_BASE}/api/leaderboard`);
     if (!res.ok) throw new Error('fetch failed');
     data = await res.json();
   } catch {
