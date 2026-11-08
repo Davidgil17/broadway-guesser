@@ -638,6 +638,69 @@ function renderEndState() {
   }
 
   document.getElementById('share-btn').addEventListener('click', shareResult);
+  loadDayStats();
+}
+
+/* ── how everyone did ──────────────────────────────────────────────────────
+   A player wrote in asking for this. Only ever loaded once the game is over,
+   so it cannot colour how someone plays, and every failure is silent: the
+   panel is a bonus and must not take the results screen with it. */
+
+let dayStatsFor = null;
+
+async function loadDayStats() {
+  if (dayStatsFor === activeDate) return;
+  const date = activeDate;
+  dayStatsFor = date;
+  // Stale numbers from the previously viewed day must not sit under the new
+  // result while this request is in flight.
+  document.getElementById('day-stats').style.display = 'none';
+
+  let data;
+  try {
+    const res = await fetch(`${API_BASE}/api/day-stats/${date}`);
+    if (!res.ok) return;
+    data = await res.json();
+  } catch {
+    return;
+  }
+  // Archive navigation can change the day mid-flight.
+  if (dayStatsFor === date && activeDate === date) renderDayStats(data);
+}
+
+function statRow(label, count, max, isMine) {
+  // A zero bar still needs to be visible as a zero, hence the floor.
+  const width = count ? Math.max((count / max) * 100, 8).toFixed(1) : 0;
+  return `<div class="ds-row${isMine ? ' is-mine' : ''}">
+      <span class="ds-key">${label}</span>
+      <span class="ds-track"><span class="ds-bar" style="width:${width}%"></span></span>
+      <span class="ds-n">${count}</span>
+    </div>`;
+}
+
+function renderDayStats(d) {
+  const el = document.getElementById('day-stats');
+  if (!d.players) return;
+
+  const lost = d.players - d.solved;
+  const max = Math.max(...d.distribution, lost, 1);
+  // The row to highlight: clues used if they won, the X row if they did not.
+  const mine = state.solved ? state.guessesUsed : 0;
+
+  const rows = d.distribution.map((n, i) => statRow(String(i + 1), n, max, mine === i + 1));
+  if (lost) rows.push(statRow('✕', lost, max, mine === 0));
+
+  const pct = Math.round((d.solved / d.players) * 100);
+  const summary = d.players === 1
+    ? `You're the first to finish ${isArchiveMode() ? 'this one' : 'today'}.`
+    : `${d.solved} of ${d.players} solved it (${pct}%)`
+      + (d.avg_guesses ? ` · ${d.avg_guesses} clues on average` : '');
+
+  el.innerHTML = `
+    <div class="ds-title">How everyone did ${isArchiveMode() ? 'that day' : 'today'}</div>
+    <div class="ds-sub">${summary}</div>
+    <div class="ds-rows">${rows.join('')}</div>`;
+  el.style.display = 'block';
 }
 
 function shareResult() {

@@ -381,6 +381,56 @@ async def test_feedback_survives_a_dead_mail_server(client, monkeypatch):
     assert [r.message for r in await rows_of_feedback()] == ["still saved"]
 
 
+# Per-day results
+
+async def day_stats(client, day=TODAY):
+    return await client.get(f"/api/day-stats/{day}")
+
+
+async def seed_scores(*rows):
+    """(uuid, solved, guesses_used) each, for today."""
+    async with _TestSession() as s:
+        s.add_all([Score(player_uuid=uuid, play_date=date.today(), solved=solved,
+                         guesses_used=used, score=0)
+                   for uuid, solved, used in rows])
+        await s.commit()
+
+
+async def test_day_stats_counts_wins_by_guesses_used(client):
+    await seed_scores(("a", True, 2), ("b", True, 2), ("c", True, 5), ("d", False, 5))
+    body = (await day_stats(client)).json()
+    assert body["players"] == 4
+    assert body["solved"] == 3
+    assert body["distribution"] == [0, 2, 0, 0, 1]
+    assert body["avg_guesses"] == 3.0
+
+
+async def test_day_stats_is_empty_before_anyone_plays(client):
+    body = (await day_stats(client)).json()
+    assert body == {"date": TODAY, "players": 0, "solved": 0,
+                    "distribution": [0, 0, 0, 0, 0], "avg_guesses": None}
+
+
+async def test_day_stats_averages_only_the_games_that_were_won(client):
+    """A loss uses all five clues. Counting it would drag the average up and
+    make every day look harder than it was."""
+    await seed_scores(("a", True, 1), ("b", False, 5))
+    assert (await day_stats(client)).json()["avg_guesses"] == 1.0
+
+
+async def test_day_stats_refuses_a_future_date(client):
+    assert (await day_stats(client, str(date.today() + timedelta(days=30)))).status_code == 404
+    assert (await day_stats(client, "not-a-date")).status_code == 422
+
+
+async def test_day_stats_names_nobody(client):
+    """Counts only — the response must not identify who played."""
+    await register(client, "Pat")
+    await seed_scores((PLAYER, True, 3))
+    body = (await day_stats(client)).text
+    assert "Pat" not in body and PLAYER not in body
+
+
 def test_every_post_endpoint_has_a_rate_limit_rule():
     """A POST matching no rule is unlimited. /api/feedback sends mail, so the
     gap would be a way to use the inbox as a megaphone."""

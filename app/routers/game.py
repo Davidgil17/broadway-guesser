@@ -308,6 +308,40 @@ async def get_leaderboard(db: AsyncSession = Depends(get_db)):
     return leaderboard
 
 
+@router.get("/day-stats/{date_str}")
+async def get_day_stats(date_str: str, db: AsyncSession = Depends(get_db)):
+    """How everyone did on one day. A player asked for this.
+
+    Counts only — no names, no ids — so it says nothing about any individual.
+    Future dates are refused by the same guard the clues use, though there is
+    nothing to leak here: a day nobody has played returns zeroes either way.
+    """
+    play_date = parse_playable_date(date_str)
+    rows = (await db.execute(
+        select(Score.solved, Score.guesses_used, func.count().label("n"))
+        .where(Score.play_date == play_date)
+        .group_by(Score.solved, Score.guesses_used)
+    )).all()
+
+    distribution = [0] * MAX_GUESSES
+    players = solved = guess_total = 0
+    for row_solved, guesses_used, n in rows:
+        players += n
+        if row_solved:
+            solved += n
+            guess_total += guesses_used * n
+            if 1 <= guesses_used <= MAX_GUESSES:
+                distribution[guesses_used - 1] += n
+
+    return {
+        "date": date_str,
+        "players": players,
+        "solved": solved,
+        "distribution": distribution,
+        "avg_guesses": round(guess_total / solved, 1) if solved else None,
+    }
+
+
 @router.get("/show/{date_str}")
 async def get_show(date_str: str, db: AsyncSession = Depends(get_db)):
     play_date = parse_playable_date(date_str)

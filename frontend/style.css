@@ -377,6 +377,58 @@ h1 {
   line-height: 1.6;
 }
 
+/* How everyone did: one row per number of clues, the player's own row picked
+   out in gold. Themed through the variables so it follows every theme. */
+#day-stats {
+  margin: 0 auto 1.5rem;
+  max-width: 320px;
+  text-align: left;
+}
+
+.ds-title {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.ds-sub {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin: 0.3rem 0 0.75rem;
+  line-height: 1.5;
+}
+
+.ds-rows { display: flex; flex-direction: column; gap: 0.3rem; }
+
+.ds-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.ds-key { width: 0.9rem; text-align: center; flex: none; }
+.ds-track { flex: 1; height: 0.6rem; }
+.ds-n { width: 2rem; text-align: right; flex: none; font-variant-numeric: tabular-nums; }
+
+.ds-bar {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 3px;
+  background: var(--border);
+}
+
+.ds-row.is-mine { color: var(--text); font-weight: 600; }
+.ds-row.is-mine .ds-bar { background: var(--gold); }
+
 #end-buttons {
   display: flex;
   gap: 0.75rem;
