@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, Text, Date, DateTime, Boolean, UniqueConstraint, func,
+    Column, Integer, Text, Date, DateTime, Boolean, UniqueConstraint, func, text,
 )
 from .database import Base
 
@@ -62,3 +62,6 @@ class Feedback(Base):
     display_name = Column(Text)
     message = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    # Set from the admin dashboard once the request has been dealt with. Nothing
+    # in the game reads it; it is here so a fresh deploy creates the column.
+    completed = Column(Boolean, nullable=False, server_default=text("false"))
