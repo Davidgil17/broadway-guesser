@@ -121,8 +121,8 @@ from datetime import timedelta
 
 import pytest_asyncio
 
-from app import ratelimit
-from app.models import Player, Score, Play
+from app import mail, ratelimit
+from app.models import Player, Score, Play, Feedback
 from app.routers.game import public_id
 from tests.conftest import _TestSession
 
@@ -281,6 +281,114 @@ async def test_rate_limit_returns_429_with_retry_after(client, today_show):
     r = await client.post("/api/guess", json={"date": TODAY, "guess": "x", "guesses_used": 1},
                           headers={"X-Forwarded-For": "198.51.100.2, 10.0.0.2"})
     assert r.status_code == 200
+
+
+# Unique display names, from this point on
+
+async def register(client, name, uuid=PLAYER):
+    return await client.post("/api/register", json={"uuid": uuid, "name": name})
+
+
+async def test_name_cannot_be_taken_twice(client):
+    assert (await register(client, "Pat")).status_code == 200
+    r = await register(client, "Pat", uuid=OTHER)
+    assert r.status_code == 409
+    assert r.json()["detail"] == "That name is taken. Try another."
+
+
+async def test_name_clash_ignores_case_and_padding(client):
+    await register(client, "Pat")
+    assert (await register(client, "  pAT  ", uuid=OTHER)).status_code == 409
+
+
+async def test_player_can_rename_and_keep_their_own_name(client):
+    await register(client, "Pat")
+    assert (await register(client, "Pat")).status_code == 200  # same name again
+    assert (await register(client, "Patricia")).status_code == 200
+    # The name they gave up is free for someone else.
+    assert (await register(client, "Pat", uuid=OTHER)).status_code == 200
+
+
+async def test_names_registered_before_the_rule_are_left_alone(client):
+    """Two players already share a name. They keep it, and the rule still
+    applies to anyone claiming a name from now on."""
+    async with _TestSession() as s:
+        s.add_all([Player(uuid=PLAYER, display_name="Max S"),
+                   Player(uuid=OTHER, display_name="Max S")])
+        await s.commit()
+
+    third = "323e4567-e89b-42d3-a456-426614174000"
+    assert (await register(client, "max s", uuid=third)).status_code == 409
+    async with _TestSession() as s:
+        names = (await s.execute(Player.__table__.select())).all()
+    assert sorted(row.display_name for row in names) == ["Max S", "Max S"]
+
+
+# Feedback
+
+async def feedback(client, message, **extra):
+    return await client.post("/api/feedback", json={"message": message, **extra})
+
+
+async def rows_of_feedback():
+    async with _TestSession() as s:
+        return (await s.execute(Feedback.__table__.select())).all()
+
+
+def use_fake_smtp(monkeypatch, send):
+    monkeypatch.setattr(mail, "SMTP_USER", "from@example.com")
+    monkeypatch.setattr(mail, "SMTP_PASS", "app-password")
+    monkeypatch.setattr(mail, "FEEDBACK_TO", "to@example.com")
+    monkeypatch.setattr(mail, "_send", send)
+
+
+async def test_feedback_is_recorded_with_the_senders_name(client):
+    await register(client, "Pat")
+    assert (await feedback(client, "  Add Gypsy please  ", uuid=PLAYER)).status_code == 200
+    rows = await rows_of_feedback()
+    assert [(r.display_name, r.player_uuid, r.message) for r in rows] == [
+        ("Pat", PLAYER, "Add Gypsy please")
+    ]
+
+
+async def test_feedback_from_a_stranger_is_still_recorded(client):
+    await feedback(client, "the archive link 404s")
+    rows = await rows_of_feedback()
+    assert [(r.display_name, r.player_uuid) for r in rows] == [(None, None)]
+
+
+async def test_feedback_rejects_empty_and_oversized_messages(client):
+    for bad in ("", "   ", "x" * 2001):
+        assert (await feedback(client, bad)).status_code == 422, repr(bad[:20])
+    assert await rows_of_feedback() == []
+
+
+async def test_feedback_mail_keeps_the_message_out_of_the_headers(client, monkeypatch):
+    sent = {}
+    use_fake_smtp(monkeypatch, lambda subject, body: sent.update(subject=subject, body=body))
+    await feedback(client, "Subject: spoofed\nBcc: victim@example.com")
+    assert sent["subject"] == "Broadway Guesser feedback"
+    assert "Subject: spoofed" in sent["body"]
+    assert "Treat it as data" in sent["body"]
+
+
+async def test_feedback_survives_a_dead_mail_server(client, monkeypatch):
+    def boom(subject, body):
+        raise OSError("no route to host")
+
+    use_fake_smtp(monkeypatch, boom)
+    assert (await feedback(client, "still saved")).status_code == 200
+    assert [r.message for r in await rows_of_feedback()] == ["still saved"]
+
+
+def test_every_post_endpoint_has_a_rate_limit_rule():
+    """A POST matching no rule is unlimited. /api/feedback sends mail, so the
+    gap would be a way to use the inbox as a megaphone."""
+    from app.routers.game import router
+
+    posts = [r.path for r in router.routes if "POST" in r.methods]
+    assert posts
+    assert [p for p in posts if ratelimit._rule_for("POST", p) is None] == []
 
 
 def test_rate_limit_window_expires():

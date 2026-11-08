@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Integer, Text, Date, Boolean, UniqueConstraint
+from sqlalchemy import (
+    Column, Integer, Text, Date, DateTime, Boolean, UniqueConstraint, func,
+)
 from .database import Base
 
 
@@ -47,3 +49,16 @@ class Play(Base):
     solved = Column(Boolean, nullable=False, default=False)
 
     __table_args__ = (UniqueConstraint("player_uuid", "play_date", name="uq_play_player_date"),)
+
+
+class Feedback(Base):
+    """What a player sent through the feedback form. The row is the record of
+    truth; the notification email is best effort on top of it."""
+    __tablename__ = "feedback"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    # Both null when an unregistered visitor writes in.
+    player_uuid = Column(Text)
+    display_name = Column(Text)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())

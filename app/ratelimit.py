@@ -42,6 +42,9 @@ ENABLED = os.environ.get("RATE_LIMIT", "on").lower() != "off"
 
 # (method, path prefix) -> (max requests, window seconds). First match wins.
 RULES: list[tuple[str, str, int, int]] = [
+    # Lower than the rest on purpose: this is the one endpoint that sends mail,
+    # so the ceiling is what stops the inbox being used as a megaphone.
+    ("POST", "/api/feedback", 30, 3600),
     ("POST", "/api/register", 200, 3600),
     ("POST", "/api/guess", 300, 60),
     ("POST", "/api/scores", 300, 60),

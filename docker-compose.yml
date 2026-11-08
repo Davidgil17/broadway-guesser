@@ -8,6 +8,9 @@ services:
       - "127.0.0.1:8003:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://broadway:${DB_PASSWORD}@postgres-shared:5432/broadway
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      FEEDBACK_TO: ${FEEDBACK_TO}
     volumes:
       - ./seeds:/broadway/seeds
     networks:

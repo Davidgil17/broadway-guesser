@@ -374,7 +374,15 @@ async function registerPlayer(name) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ uuid, name, history }),
   });
-  if (!res.ok) throw new Error('Registration failed');
+  if (!res.ok) {
+    const err = new Error('Registration failed');
+    if (res.status === 409) {
+      // A taken name is the player's to fix, so the server's wording is shown.
+      const detail = await res.json().then(d => d.detail).catch(() => null);
+      if (typeof detail === 'string') err.userMessage = detail;
+    }
+    throw err;
+  }
   setPlayer({ uuid, name });
 }
 
@@ -700,11 +708,12 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       await registerPlayer(name);
       closeNamePrompt();
-    } catch {
-      errEl.textContent = 'Something went wrong — please try again.';
+    } catch (e) {
+      errEl.textContent = e.userMessage || 'Something went wrong — please try again.';
       errEl.style.display = 'block';
       nameSubmit.disabled = false;
       nameSubmit.textContent = 'Join';
+      if (e.userMessage) nameInput.select();
     }
   });
 
