@@ -514,7 +514,16 @@ async function loadGame(date) {
   document.getElementById('date-display').textContent = new Date(activeDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   document.getElementById('archive-banner').style.display = isArchiveMode() ? 'flex' : 'none';
 
-  const res = await fetch(`${API_BASE}/api/show/${activeDate}`);
+  // A dead API throws rather than answering, which left the game stuck on a
+  // blank loading state. `!res.ok` is a different thing — a live server saying
+  // there is no show today — and keeps its own message below.
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/api/show/${activeDate}`);
+  } catch {
+    showOfflineGate();
+    return;
+  }
 
   if (!res.ok) {
     document.getElementById('no-show-message').style.display = 'block';

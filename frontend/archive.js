@@ -10,8 +10,16 @@ let earliestMonth = null; // { year, month }
 let currentMonth = null;  // { year, month }
 
 async function init() {
-  const res = await fetch(`${API_BASE}/api/archive`);
-  const pastDates = await res.json();
+  // Without this the calendar has nothing to draw and the page sits empty, with
+  // only an uncaught rejection in the console to say why.
+  let pastDates;
+  try {
+    const res = await fetch(`${API_BASE}/api/archive`);
+    pastDates = await res.json();
+  } catch {
+    showOfflineGate();
+    return;
+  }
 
   pastDates.forEach(d => showDates.add(d));
   showDates.add(TODAY);

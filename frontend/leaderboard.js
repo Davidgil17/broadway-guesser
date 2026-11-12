@@ -62,9 +62,19 @@ function rankSymbol(i) {
 }
 
 async function loadLeaderboard() {
+  // A thrown fetch means nothing answered at all, which is the whole site being
+  // unreachable rather than this one table failing — so it gets the gate instead
+  // of an inline message on a page that can't work either way.
+  let res;
+  try {
+    res = await fetch(`${API_BASE}/api/leaderboard`);
+  } catch {
+    showOfflineGate();
+    return;
+  }
+
   let data;
   try {
-    const res = await fetch(`${API_BASE}/api/leaderboard`);
     if (!res.ok) throw new Error('fetch failed');
     data = await res.json();
   } catch {
